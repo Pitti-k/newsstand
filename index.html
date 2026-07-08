@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f1115">
+<title>마켓 뉴스스탠드</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --text:#16181d; --sub:#6b7280; --line:#e5e7eb;
+  --accent:#2563eb; --chip:#eceef2; --chip-on:#16181d; --chip-on-text:#fff; --err:#dc2626;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0f1115; --card:#181b21; --text:#e8eaee; --sub:#9aa1ad; --line:#262a32;
+    --accent:#60a5fa; --chip:#232730; --chip-on:#e8eaee; --chip-on-text:#0f1115; --err:#f87171; }
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+body{margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky; top:0; z-index:10; background:var(--bg);
+  padding:calc(10px + env(safe-area-inset-top)) 14px 0}
+.titlebar{display:flex; align-items:center; justify-content:space-between}
+h1{font-size:19px; margin:0; letter-spacing:-.3px}
+#updated{font-size:11px; color:var(--sub)}
+#refresh{border:none; background:var(--chip); color:var(--text); border-radius:16px;
+  padding:6px 12px; font-size:13px; font-weight:600}
+#refresh:active{opacity:.6}
+.tabs{display:flex; gap:6px; overflow-x:auto; padding:10px 0; scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto; border:none; background:var(--chip); color:var(--text);
+  border-radius:16px; padding:7px 13px; font-size:13px; font-weight:600}
+.tab.on{background:var(--chip-on); color:var(--chip-on-text)}
+main{padding:4px 14px 30px; max-width:640px; margin:0 auto}
+.card{background:var(--card); border-radius:14px; padding:14px; margin-bottom:10px;
+  border:1px solid var(--line)}
+.meta{display:flex; gap:8px; align-items:center; font-size:11px; color:var(--sub); margin-bottom:6px}
+.src{font-weight:700; color:var(--accent)}
+.t-ko{font-size:15.5px; font-weight:700; line-height:1.45; margin:0 0 4px}
+.t-ko a{color:inherit; text-decoration:none}
+.d-ko{font-size:13.5px; line-height:1.55; color:var(--text); opacity:.85; margin:0}
+.orig{display:none; margin-top:9px; padding-top:9px; border-top:1px dashed var(--line);
+  font-size:12.5px; line-height:1.5; color:var(--sub)}
+.card.open .orig{display:block}
+.orig b{color:var(--text); opacity:.75}
+.tgrow{display:flex; gap:18px; margin-top:8px}
+.togg{font-size:12px; color:var(--accent); font-weight:600}
+#rdr{position:fixed; inset:0; z-index:30; background:var(--bg); display:none; flex-direction:column;
+  padding-top:env(safe-area-inset-top)}
+#rdr.on{display:flex}
+.rhead{display:flex; gap:10px; align-items:flex-start; padding:14px; border-bottom:1px solid var(--line)}
+.rhead h2{font-size:16px; margin:0; line-height:1.45}
+#rclose{border:none; background:var(--chip); color:var(--text); border-radius:14px;
+  padding:7px 12px; font-weight:700; font-size:13px; flex:0 0 auto}
+.rbody{overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px 14px 40px;
+  max-width:640px; margin:0 auto; width:100%; flex:1}
+.rp{margin:0 0 20px}
+.rp .ko{font-size:15px; line-height:1.7; margin:0 0 7px}
+.rp .en{font-size:12.5px; line-height:1.55; color:var(--sub); margin:0}
+.rlink{display:block; text-align:center; margin-top:10px; font-size:13px; color:var(--accent); font-weight:600}
+.skel{height:74px; border-radius:14px; margin-bottom:10px;
+  background:linear-gradient(90deg,var(--card) 25%,var(--chip) 50%,var(--card) 75%);
+  background-size:400% 100%; animation:sh 1.2s infinite}
+@keyframes sh{0%{background-position:100% 0}100%{background-position:0 0}}
+.note{font-size:12px; color:var(--sub); text-align:center; padding:14px}
+.errs{font-size:11.5px; color:var(--err); padding:0 2px 8px}
+.pending{opacity:.45}
+footer{font-size:11px; color:var(--sub); text-align:center; padding:8px 0 24px}
+html,body{overscroll-behavior-y:none}
+#ptr{position:fixed; top:-54px; left:50%; z-index:20; transform:translateX(-50%);
+  background:var(--card); border:1px solid var(--line); border-radius:20px;
+  padding:9px 16px; font-size:12.5px; font-weight:600; color:var(--sub);
+  box-shadow:0 4px 14px rgba(0,0,0,.12); transition:top .2s; pointer-events:none}
+#ptr.ready{color:var(--accent)}
+#ptr.spin{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <div class="titlebar">
+    <h1>📈 마켓 뉴스스탠드</h1>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="updated"></span>
+      <button id="refresh" onclick="loadAll(true)">새로고침</button>
+    </div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+</header>
+<div id="ptr">↓ 당겨서 새로고침</div>
+<div id="rdr">
+  <div class="rhead">
+    <div style="flex:1">
+      <h2 id="rtitle"></h2>
+      <div class="meta" style="margin:5px 0 0"><span class="src" id="rsrc"></span></div>
+    </div>
+    <button id="rclose" onclick="closeReader()">닫기 ✕</button>
+  </div>
+  <div class="rbody" id="rbody"></div>
+</div>
+<main>
+  <div class="errs" id="errs"></div>
+  <div id="list"></div>
+  <footer>rss2json + Google Translate · 광고 없음 · 개인용</footer>
+</main>
+<script>
+"use strict";
+const FEEDS = [
+  {id:"cnbc",  name:"CNBC",          url:"https://www.cnbc.com/id/100003114/device/rss/rss.html"},
+  {id:"mw",    name:"MarketWatch",   url:"https://feeds.content.dowjones.io/public/rss/mw_topstories"},
+  {id:"wsj",   name:"WSJ",           url:"https://feeds.content.dowjones.io/public/rss/RSSMarketsMain"},
+  {id:"ft",    name:"FT",            url:"https://www.ft.com/rss/home"},
+  {id:"bbg",   name:"Bloomberg",     url:"https://feeds.bloomberg.com/markets/news.rss"},
+  {id:"yf",    name:"Yahoo",         url:"https://finance.yahoo.com/news/rssindex", noDesc:true},
+  {id:"sa",    name:"SeekingAlpha",  url:"https://seekingalpha.com/market_currents.xml", noDesc:true},
+  {id:"reut",  name:"Reuters",       url:"https://news.google.com/rss/search?q=site:reuters.com+markets+when:1d&hl=en-US&gl=US&ceid=US:en", gnews:true},
+  {id:"ap",    name:"AP",            url:"https://news.google.com/rss/search?q=site:apnews.com+(stocks+OR+markets+OR+economy)+when:1d&hl=en-US&gl=US&ceid=US:en", gnews:true},
+];
+let items = [];            // merged items
+let curTab = localStorage.getItem("tab") || "all";
+let trCache = {};
+try{ trCache = JSON.parse(localStorage.getItem("trc")||"{}"); }catch(e){}
+
+const $ = id => document.getElementById(id);
+const esc = s => { const d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; };
+const stripHtml = s => { const d=document.createElement("div"); d.innerHTML=s||""; return (d.textContent||"").trim(); };
+
+function rel(dt){
+  const t = new Date((dt||"").replace(" ","T")+"Z").getTime();
+  if(isNaN(t)) return "";
+  const m = Math.round((Date.now()-t)/60000);
+  if(m<1) return "방금"; if(m<60) return m+"분 전";
+  const h=Math.floor(m/60); if(h<24) return h+"시간 전";
+  return Math.floor(h/24)+"일 전";
+}
+
+async function fetchFeed(f, retry){
+  const api = "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(f.url);
+  try{
+    const r = await fetch(api);
+    const j = await r.json();
+    if(j.status!=="ok") throw new Error(j.message||"feed error");
+    return j.items.map(it=>({
+      src:f.name, srcId:f.id, gnews:!!f.gnews,
+      title:stripHtml(it.title), link:it.link, pubDate:it.pubDate,
+      desc: f.noDesc||f.gnews ? "" : stripHtml(it.description).slice(0,300)
+    }));
+  }catch(e){
+    if(!retry){ await new Promise(r=>setTimeout(r,2500)); return fetchFeed(f,true); }
+    throw e;
+  }
+}
+
+// --- translation (free endpoint, cached in localStorage) ---
+async function gtr(text){
+  const u = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=" + encodeURIComponent(text);
+  const r = await fetch(u);
+  if(!r.ok) throw new Error("tr fail");
+  const j = await r.json();
+  return (j[0]||[]).map(seg=>seg[0]).join("");
+}
+async function translateItem(it){
+  const key = it.link;
+  if(trCache[key]){ it.tko=trCache[key].t; it.dko=trCache[key].d; return; }
+  try{
+    const t = await gtr(it.title);
+    const d = it.desc ? await gtr(it.desc) : "";
+    it.tko=t; it.dko=d;
+    trCache[key]={t,d};
+  }catch(e){ it.trFail=true; }
+}
+function saveCache(){
+  const keys = Object.keys(trCache);
+  if(keys.length>600) keys.slice(0,keys.length-600).forEach(k=>delete trCache[k]);
+  try{ localStorage.setItem("trc", JSON.stringify(trCache)); }catch(e){}
+}
+
+// --- rendering ---
+function tabItems(){
+  return (curTab==="all" ? items : items.filter(i=>i.srcId===curTab));
+}
+function renderTabs(counts){
+  const defs = [{id:"all",name:"전체"}].concat(FEEDS);
+  $("tabs").innerHTML = defs.map(d=>
+    `<button class="tab ${d.id===curTab?"on":""}" onclick="setTab('${d.id}')">${d.name}</button>`
+  ).join("");
+}
+function setTab(id){
+  curTab=id; localStorage.setItem("tab",id);
+  renderTabs(); render(); translateVisible();
+}
+function card(it,i){
+  const ko = it.tko, dko = it.dko;
+  return `<div class="card ${it.open?"open":""} ${ko?"":"pending"}" id="c${i}">
+    <div class="meta"><span class="src">${esc(it.src)}</span><span>${rel(it.pubDate)}</span></div>
+    <p class="t-ko"><a href="${esc(it.link)}" target="_blank" rel="noopener">${esc(ko||it.title)}</a></p>
+    ${dko?`<p class="d-ko">${esc(dko)}</p>`:""}
+    <div class="tgrow">
+      ${ko?`<span class="togg" onclick="toggleOrig(${i})">원문 ${it.open?"접기":"보기"}</span>`:""}
+      <span class="togg" onclick="openReader(${i})">📖 전문+번역</span>
+    </div>
+    ${ko?`<div class="orig"><b>${esc(it.title)}</b>${it.desc?"<br>"+esc(it.desc):""}</div>`:""}
+  </div>`;
+}
+function render(){
+  const list = tabItems();
+  $("list").innerHTML = list.length
+    ? list.map((it,i)=>card(it,i)).join("")
+    : `<div class="note">기사가 없습니다.</div>`;
+}
+function toggleOrig(i){
+  const it = tabItems()[i];
+  it.open = !it.open; render();
+}
+async function translateVisible(){
+  const list = tabItems().filter(it=>!it.tko && !it.trFail);
+  let active = 0, idx = 0;
+  await new Promise(done=>{
+    const next = ()=>{
+      if(idx>=list.length && active===0) return done();
+      while(active<4 && idx<list.length){
+        const it = list[idx++]; active++;
+        translateItem(it).then(()=>{ active--; render(); next(); });
+      }
+    };
+    next();
+  });
+  saveCache(); render();
+}
+
+async function loadAll(force){
+  if(location.protocol==="file:"){
+    $("errs").textContent = "";
+    $("list").innerHTML = "<div class='note'>⚠️ 파일을 직접 열면 뉴스 서버가 요청을 차단합니다(Origin null).<br>GitHub Pages 등 https 주소에 올린 뒤 그 주소로 접속해주세요.</div>";
+    renderTabs();
+    return;
+  }
+  $("list").innerHTML = "<div class='skel'></div>".repeat(6);
+  $("errs").textContent = "";
+  renderTabs();
+  const results = await Promise.allSettled(FEEDS.map(f=>fetchFeed(f)));
+  const errs = [];
+  items = [];
+  results.forEach((r,i)=>{
+    if(r.status==="fulfilled") items.push(...r.value);
+    else errs.push(FEEDS[i].name);
+  });
+  // de-dup by link, sort by date desc
+  const seen = new Set();
+  items = items.filter(it=>{ if(seen.has(it.link)) return false; seen.add(it.link); return true; })
+    .sort((a,b)=> new Date(b.pubDate.replace(" ","T")+"Z") - new Date(a.pubDate.replace(" ","T")+"Z"));
+  if(errs.length) $("errs").textContent = "불러오기 실패: " + errs.join(", ") + " (새로고침 해보세요)";
+  $("updated").textContent = new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}) + " 업데이트";
+  render();
+  translateVisible();
+}
+loadAll();
+
+// --- reader mode (전문 원문+번역) ---
+let rdrGen = 0;
+function extractParas(md){
+  let t = md.split("Markdown Content:")[1] || md;
+  t = t.replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+       .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1");
+  const stop = /^(Don.t miss|More In |Subscribe to|Sign up for|Related:|Read more:|WATCH:|Correction:|Recommended For You)/i;
+  const junk = /^(Skip Navigation|BREAKING|LIVE UPDATES|VIDEO|watch now|Advertisement|Getty Images|AP Photo|Photo:|Source:|Image:|Share|Save|Print|Comments)/i;
+  const out = [];
+  for(let line of t.split(/\n{2,}/)){
+    line = line.replace(/\s+/g," ").replace(/^[#>*\-\s|]+/,"").trim();
+    if(!line) continue;
+    if(stop.test(line)) break;
+    if(junk.test(line)) continue;
+    if(line.length < 60) continue;
+    if((line.match(/ \* /g)||[]).length >= 3) continue;      // 메뉴/네비게이션 목록
+    if((line.match(/\|/g)||[]).length >= 3) continue;         // 표/구분선
+    const words = line.split(" ");
+    if(words.length > 5 && words.filter(w=>/^[A-Z가-힣]/.test(w)).length / words.length > 0.9) continue; // 제목 나열형 네비
+    if(!/[.!?%”"']\s*$/.test(line) && line.length < 120) continue; // 문장부호 없이 끝나는 짧은 조각
+    out.push(line);
+    if(out.length >= 40) break;
+  }
+  return out;
+}
+async function openReader(i){
+  const it = tabItems()[i];
+  const my = ++rdrGen;
+  $("rdr").classList.add("on");
+  document.body.style.overflow = "hidden";
+  $("rtitle").textContent = it.tko || it.title;
+  $("rsrc").textContent = it.src;
+  const body = $("rbody");
+  body.innerHTML = "<div class='note'>본문 불러오는 중…</div>";
+  try{
+    const r = await fetch("https://r.jina.ai/" + it.link);
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    const md = await r.text();
+    if(my !== rdrGen) return;
+    const paras = extractParas(md);
+    if(!paras.length){
+      body.innerHTML = "<div class='note'>본문을 추출하지 못했습니다.<br>구독 전용 기사일 수 있어요.</div>"
+        + `<a class="rlink" href="${esc(it.link)}" target="_blank" rel="noopener">원문 페이지 열기 ↗</a>`;
+      return;
+    }
+    const paywalled = paras.join("").length < 500;
+    body.innerHTML =
+      (paywalled ? "<div class='note'>⚠️ 구독 매체로 보여요 — 공개된 부분까지만 표시됩니다.</div>" : "") +
+      paras.map((p,j)=>`<div class="rp"><p class="ko" id="rko${j}">번역 중…</p><p class="en">${esc(p)}</p></div>`).join("") +
+      `<a class="rlink" href="${esc(it.link)}" target="_blank" rel="noopener">원문 페이지 열기 ↗</a>`;
+    let idx = 0, act = 0;
+    const step = () => {
+      while(act < 3 && idx < paras.length){
+        const j = idx++; act++;
+        gtr(paras[j])
+          .then(t => { if(my === rdrGen){ const el = $("rko"+j); if(el) el.textContent = t; } })
+          .catch(() => { if(my === rdrGen){ const el = $("rko"+j); if(el) el.textContent = "(번역 실패 — 아래 원문 참고)"; } })
+          .finally(() => { act--; step(); });
+      }
+    };
+    step();
+  }catch(e){
+    if(my === rdrGen)
+      body.innerHTML = "<div class='note'>불러오기 실패: " + esc(e.message) + "</div>"
+        + `<a class="rlink" href="${esc(it.link)}" target="_blank" rel="noopener">원문 페이지 열기 ↗</a>`;
+  }
+}
+function closeReader(){
+  rdrGen++;
+  $("rdr").classList.remove("on");
+  document.body.style.overflow = "";
+}
+
+// --- pull to refresh ---
+(function(){
+  const ptr = $("ptr"), TH = 150;   // 손가락 이동 기준 임계값(px)
+  let startY = 0, dist = 0, active = false, busy = false;
+  document.addEventListener("touchstart", e => {
+    if(busy || window.scrollY > 0 || $("rdr").classList.contains("on")) return;
+    startY = e.touches[0].clientY; dist = 0; active = true;
+    ptr.style.transition = "none";
+  }, {passive:true});
+  document.addEventListener("touchmove", e => {
+    if(!active || busy) return;
+    dist = e.touches[0].clientY - startY;
+    if(dist <= 0 || window.scrollY > 0){ ptr.style.top = "-54px"; return; }
+    const shown = Math.min(dist/2, 90) - 54;
+    ptr.style.top = shown + "px";
+    if(dist > TH){ ptr.textContent = "↻ 놓으면 새로고침"; ptr.classList.add("ready"); }
+    else { ptr.textContent = "↓ 당겨서 새로고침"; ptr.classList.remove("ready"); }
+  }, {passive:true});
+  document.addEventListener("touchend", async () => {
+    if(!active || busy) return;
+    active = false;
+    ptr.style.transition = "top .2s";
+    if(dist > TH){
+      busy = true;
+      ptr.textContent = "새로고침 중…"; ptr.classList.add("spin"); ptr.style.top = "14px";
+      try{ await loadAll(true); } finally {
+        ptr.style.top = "-54px"; ptr.classList.remove("spin","ready");
+        ptr.textContent = "↓ 당겨서 새로고침"; busy = false;
+      }
+    } else {
+      ptr.style.top = "-54px"; ptr.classList.remove("ready");
+      ptr.textContent = "↓ 당겨서 새로고침";
+    }
+  });
+})();
+</script>
+</body>
+</html>
